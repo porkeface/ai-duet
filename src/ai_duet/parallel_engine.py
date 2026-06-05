@@ -5,13 +5,14 @@
 """
 
 import asyncio
+import json
 import os
 import shutil
 import subprocess
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable, Coroutine
+from typing import Any
 
 from .config import ExecutionConfig
 
@@ -52,8 +53,13 @@ class ParallelEngine:
         npm_global_dirs = [
             Path.home() / ".npm-global" / "bin",
             Path.home() / "AppData" / "Roaming" / "npm",
-            Path("D:/Soft/Nodejs/node_global"),  # 常见的 npm 全局目录
         ]
+
+        # 从环境变量读取 npm 全局目录
+        npm_prefix = os.environ.get("NPM_CONFIG_PREFIX") or os.environ.get("npm_config_prefix")
+        if npm_prefix:
+            npm_global_dirs.insert(0, Path(npm_prefix) / "bin")
+            npm_global_dirs.insert(0, Path(npm_prefix))
 
         for npm_dir in npm_global_dirs:
             if npm_dir.exists():
@@ -68,6 +74,54 @@ class ParallelEngine:
         # 如果都找不到，返回原始命令名
         return tool
 
+    def _parse_output(self, tool: str, raw_output: str) -> str:
+        """解析 CLI 输出"""
+        if tool == "claude":
+            return self._parse_claude_output(raw_output)
+        else:
+            return self._parse_codex_output(raw_output)
+
+    def _parse_claude_output(self, raw_output: str) -> str:
+        """解析 Claude 的 JSON 输出"""
+        try:
+            data = json.loads(raw_output.strip())
+            if isinstance(data, dict) and "result" in data:
+                return data["result"]
+            return raw_output
+        except json.JSONDecodeError:
+            return raw_output
+
+    def _parse_codex_output(self, raw_output: str) -> str:
+        """解析 Codex 的 JSONL 输出"""
+        lines = raw_output.strip().split("\n")
+        messages = []
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                data = json.loads(line)
+                # 提取消息内容
+                if data.get("type") == "message":
+                    content = data.get("content", "")
+                    if content:
+                        messages.append(content)
+                elif data.get("type") == "response":
+                    # 有些版本用 response 类型
+                    text = data.get("text", "") or data.get("content", "")
+                    if text:
+                        messages.append(text)
+                elif data.get("type") == "error":
+                    error_msg = data.get("message", "Unknown error")
+                    messages.append(f"[Error: {error_msg}]")
+            except json.JSONDecodeError:
+                # 非 JSON 行直接作为输出
+                if line and not line.startswith("{"):
+                    messages.append(line)
+
+        result = "\n".join(messages).strip()
+        return result if result else raw_output
+
     async def _run_cli(
         self,
         tool: str,
@@ -78,6 +132,11 @@ class ParallelEngine:
         start_time = time.time()
         last_error = ""
 
+        # Windows 命令行长度限制约 8192 字符
+        # 长提示需要通过 stdin 传递
+        USE_STDIN_THRESHOLD = 4000
+        use_stdin = len(prompt) > USE_STDIN_THRESHOLD
+
         for attempt in range(self.config.max_retries):
             try:
                 # 获取工具的完整路径
@@ -85,22 +144,44 @@ class ParallelEngine:
 
                 # 使用列表形式，安全且跨平台
                 if tool == "claude":
-                    cmd = [tool_path, "-p", prompt, "--output-format", "json"]
+                    if use_stdin:
+                        # 长提示通过 stdin 传递
+                        cmd = [tool_path, "-p", "-", "--output-format", "json"]
+                    else:
+                        cmd = [tool_path, "-p", prompt, "--output-format", "json"]
                 else:
-                    cmd = [tool_path, "-q", prompt]
+                    # 使用 codex exec 命令进行非交互式运行
+                    if use_stdin:
+                        cmd = [
+                            tool_path, "exec", "-",
+                            "--json",
+                            "-s", "read-only",
+                            "--dangerously-bypass-approvals-and-sandbox",
+                            "--ephemeral",
+                        ]
+                    else:
+                        cmd = [
+                            tool_path, "exec", prompt,
+                            "--json",
+                            "-s", "read-only",
+                            "--dangerously-bypass-approvals-and-sandbox",
+                            "--ephemeral",
+                        ]
 
                 # 使用 asyncio.create_subprocess_exec 替代 subprocess.run
                 # 避免阻塞事件循环
+                stdin_data = prompt.encode("utf-8") if use_stdin else None
                 process = await asyncio.create_subprocess_exec(
                     *cmd,
                     cwd=cwd,
+                    stdin=asyncio.subprocess.PIPE if use_stdin else None,
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,
                 )
 
                 try:
                     stdout, stderr = await asyncio.wait_for(
-                        process.communicate(),
+                        process.communicate(input=stdin_data),
                         timeout=self.config.timeout,
                     )
                 except asyncio.TimeoutError:
@@ -109,17 +190,31 @@ class ParallelEngine:
                     raise
 
                 duration = time.time() - start_time
+                raw_output = stdout.decode("utf-8", errors="replace")
+                raw_error = stderr.decode("utf-8", errors="replace")
+
+                # 解析输出
+                output = self._parse_output(tool, raw_output)
 
                 if process.returncode == 0:
                     return CLIResult(
                         tool=tool,
                         success=True,
-                        output=stdout.decode("utf-8", errors="replace"),
+                        output=output,
                         duration=duration,
                         retries=attempt,
                     )
                 else:
-                    last_error = stderr.decode("utf-8", errors="replace")
+                    # 即使返回非零退出码，如果有输出也尝试使用
+                    if output and output.strip():
+                        return CLIResult(
+                            tool=tool,
+                            success=True,
+                            output=output,
+                            duration=duration,
+                            retries=attempt,
+                        )
+                    last_error = raw_error or raw_output
                     if attempt < self.config.max_retries - 1:
                         await asyncio.sleep(2 ** attempt)  # 指数退避
 

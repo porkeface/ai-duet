@@ -518,13 +518,13 @@ Codex 的审计：
 - conflicts: 双方有分歧的问题
 - final_recommendations: 最终建议"""
 
-    def _read_directory(self, dir_path: Path, extensions: list[str] = None, max_size_mb: float = 1.0) -> str:
+    def _read_directory(self, dir_path: Path, extensions: list[str] = None, max_size_mb: float = 0.3) -> str:
         """读取目录下的文件
 
         Args:
             dir_path: 目录路径
             extensions: 文件扩展名列表
-            max_size_mb: 最大总大小（MB），默认 1MB
+            max_size_mb: 最大总大小（MB），默认 0.3MB
         """
         if extensions is None:
             extensions = [".py", ".js", ".ts", ".jsx", ".tsx", ".java", ".go", ".rs"]

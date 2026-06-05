@@ -321,6 +321,7 @@ def _show_result(session, mode):
 def _get_tool_path(cmd):
     """获取工具的完整路径"""
     import shutil
+    import os
     from pathlib import Path
 
     # 先在 PATH 中查找
@@ -332,8 +333,13 @@ def _get_tool_path(cmd):
     npm_global_dirs = [
         Path.home() / ".npm-global" / "bin",
         Path.home() / "AppData" / "Roaming" / "npm",
-        Path("D:/Soft/Nodejs/node_global"),  # 常见的 npm 全局目录
     ]
+
+    # 从环境变量读取 npm 全局目录
+    npm_prefix = os.environ.get("NPM_CONFIG_PREFIX") or os.environ.get("npm_config_prefix")
+    if npm_prefix:
+        npm_global_dirs.insert(0, Path(npm_prefix) / "bin")
+        npm_global_dirs.insert(0, Path(npm_prefix))
 
     for npm_dir in npm_global_dirs:
         if npm_dir.exists():
