@@ -1,0 +1,22 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Environment variables (secrets)
+.env
+.env.local
+.env.*.local
+
+# AI-Duet output
+ai-duet-output/
+codex-collab-output/
+
+# Sessions
+sessions/
