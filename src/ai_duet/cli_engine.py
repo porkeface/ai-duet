@@ -262,7 +262,7 @@ Codex 的观点：{result.codex.output}
         task: str,
         strategy: str = "by_module",
     ) -> CollabSession:
-        """执行协作编码模式"""
+        """执行协作编码模式（并行 + 增量审查）"""
         session_id = self._generate_session_id("pair")
         session = CollabSession(
             id=session_id,
@@ -277,7 +277,7 @@ Codex 的观点：{result.codex.output}
             if diff:
                 git_context = f"\n\nCurrent git diff:\n{diff.diff_content}"
 
-        # 分工
+        # Step 1: 分工
         division_prompt = f"""我们需要协作完成以下任务：
 任务：{task}
 项目目录：{self.project_dir}
@@ -301,7 +301,7 @@ Codex 的观点：{result.codex.output}
             content={"raw": division_result.output},
         ))
 
-        # 并行编写代码
+        # Step 2: 并行编写代码（Claude 和 Codex 同时工作）
         claude_code_prompt = f"""根据分工方案编写代码：
 {division_result.output}
 
@@ -318,6 +318,7 @@ Write your part and return as JSON:
 - content: code content
 - description: explanation"""
 
+        # 并行执行！
         code_result = await self.parallel_engine.run_parallel(
             claude_code_prompt, codex_code_prompt, str(self.project_dir)
         )
@@ -327,6 +328,7 @@ Write your part and return as JSON:
             sender="claude",
             mode=CollabMode.PAIR,
             content={"raw": code_result.claude.output, "success": code_result.claude.success},
+            metadata={"duration": code_result.claude.duration},
         ))
 
         session.messages.append(CollabMessage(
@@ -334,10 +336,59 @@ Write your part and return as JSON:
             sender="codex",
             mode=CollabMode.PAIR,
             content={"raw": code_result.codex.output, "success": code_result.codex.success},
+            metadata={"duration": code_result.codex.duration},
         ))
 
-        # 代码审查和合并
-        review_prompt = f"""审查并合并双方的代码：
+        # Step 3: 增量审查（每完成一个模块就审查）
+        # 3.1 审查 Claude 的代码
+        claude_review_prompt = f"""审查 Claude 的代码，检查是否符合接口约定：
+
+Claude 的代码：
+{code_result.claude.output}
+
+接口约定：
+{division_result.output}
+
+请以 JSON 格式返回审查结果：
+- issues: 发现的问题列表
+- suggestions: 改进建议
+- approved: 是否通过（true/false）"""
+
+        # 3.2 审查 Codex 的代码
+        codex_review_prompt = f"""Review Codex's code, check if it follows the interface contract:
+
+Codex's code:
+{code_result.codex.output}
+
+Interface contract:
+{division_result.output}
+
+Return review as JSON:
+- issues: list of issues found
+- suggestions: improvement suggestions
+- approved: whether it passes (true/false)"""
+
+        # 并行审查！
+        review_result = await self.parallel_engine.run_parallel(
+            claude_review_prompt, codex_review_prompt, str(self.project_dir)
+        )
+
+        session.messages.append(CollabMessage(
+            id="review-claude-1",
+            sender="claude",
+            mode=CollabMode.PAIR,
+            content={"raw": review_result.claude.output, "success": review_result.claude.success},
+        ))
+
+        session.messages.append(CollabMessage(
+            id="review-codex-1",
+            sender="codex",
+            mode=CollabMode.PAIR,
+            content={"raw": review_result.codex.output, "success": review_result.codex.success},
+        ))
+
+        # Step 4: 合并代码（解决冲突）
+        merge_prompt = f"""合并双方的代码，解决任何冲突：
 
 Claude 的代码：
 {code_result.claude.output}
@@ -345,21 +396,27 @@ Claude 的代码：
 Codex 的代码：
 {code_result.codex.output}
 
+Claude 的审查：
+{review_result.claude.output}
+
+Codex 的审查：
+{review_result.codex.output}
+
 请：
 1. 检查代码一致性
-2. 发现潜在问题
+2. 解决任何冲突
 3. 提供合并后的最终代码
 4. 说明需要修改的地方"""
 
-        review_result = await self.parallel_engine._run_cli(
-            "claude", review_prompt, str(self.project_dir)
+        merge_result = await self.parallel_engine._run_cli(
+            "claude", merge_prompt, str(self.project_dir)
         )
 
         session.messages.append(CollabMessage(
-            id="review-1",
+            id="merge-1",
             sender="user",
             mode=CollabMode.PAIR,
-            content={"raw": review_result.output},
+            content={"raw": merge_result.output},
         ))
 
         session.status = "completed"
