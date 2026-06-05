@@ -47,6 +47,7 @@ class GitIntegration:
             cwd=self.project_dir,
             capture_output=True,
             text=True,
+            timeout=30,  # 添加超时限制
         )
 
     def is_git_repo(self) -> bool:

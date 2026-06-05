@@ -6,9 +6,12 @@
 
 import html
 import json
+import logging
 from datetime import datetime
 from pathlib import Path
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 from .config import SESSIONS_DIR, OutputConfig
 from .protocol import CollabSession, CollabMessage
@@ -23,7 +26,11 @@ class SessionStorage:
 
     def _get_session_path(self, session_id: str) -> Path:
         """获取会话文件路径"""
-        return self.base_dir / f"{session_id}.json"
+        # 防止路径遍历攻击
+        path = (self.base_dir / f"{session_id}.json").resolve()
+        if not str(path).startswith(str(self.base_dir.resolve())):
+            raise ValueError("Invalid session_id: path traversal detected")
+        return path
 
     def save_session(self, session: CollabSession) -> Path:
         """保存会话"""
@@ -58,29 +65,37 @@ class SessionStorage:
         if not path.exists():
             return None
 
-        with open(path, "r", encoding="utf-8") as f:
-            data = json.load(f)
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        except json.JSONDecodeError:
+            logger.error(f"Corrupted session file: {path}")
+            return None
 
-        messages = [
-            CollabMessage(
-                id=msg["id"],
-                timestamp=datetime.fromisoformat(msg["timestamp"]),
-                sender=msg["sender"],
-                mode=msg["mode"],
-                content=msg["content"],
-                metadata=msg.get("metadata", {}),
+        try:
+            messages = [
+                CollabMessage(
+                    id=msg["id"],
+                    timestamp=datetime.fromisoformat(msg["timestamp"]),
+                    sender=msg["sender"],
+                    mode=msg["mode"],
+                    content=msg["content"],
+                    metadata=msg.get("metadata", {}),
+                )
+                for msg in data.get("messages", [])
+            ]
+
+            return CollabSession(
+                id=data["id"],
+                mode=data["mode"],
+                status=data["status"],
+                started_at=datetime.fromisoformat(data["started_at"]),
+                messages=messages,
+                project_dir=data.get("project_dir", ""),
             )
-            for msg in data.get("messages", [])
-        ]
-
-        return CollabSession(
-            id=data["id"],
-            mode=data["mode"],
-            status=data["status"],
-            started_at=datetime.fromisoformat(data["started_at"]),
-            messages=messages,
-            project_dir=data.get("project_dir", ""),
-        )
+        except (KeyError, ValueError) as e:
+            logger.error(f"Invalid session data: {e}")
+            return None
 
     def list_sessions(self, limit: int = 50) -> list[dict[str, Any]]:
         """列出所有会话"""

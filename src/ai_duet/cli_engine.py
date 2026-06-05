@@ -105,7 +105,7 @@ class CLIEngine:
             compare_prompt = self._build_compare_prompt(
                 result.claude.output, result.codex.output
             )
-            compare_result = await self.parallel_engine._run_cli(
+            compare_result = await self.parallel_engine.run_single(
                 "claude", compare_prompt, str(self.project_dir)
             )
 
@@ -228,15 +228,15 @@ Please:
 
 话题：{topic}
 
-Claude 的观点：{result.claude.output}
-Codex 的观点：{result.codex.output}
+Claude 的观点：{claude_response}
+Codex 的观点：{codex_response}
 
 请提供：
 1. 双方的共识点
 2. 仍然存在的分歧
 3. 最终建议"""
 
-        summary_result = await self.parallel_engine._run_cli(
+        summary_result = await self.parallel_engine.run_single(
             "claude", summary_prompt, str(self.project_dir)
         )
 
@@ -290,7 +290,7 @@ Codex 的观点：{result.codex.output}
 - interface_contract: 接口约定
 - merge_strategy: 合并策略"""
 
-        division_result = await self.parallel_engine._run_cli(
+        division_result = await self.parallel_engine.run_single(
             "claude", division_prompt, str(self.project_dir)
         )
 
@@ -408,7 +408,7 @@ Codex 的审查：
 3. 提供合并后的最终代码
 4. 说明需要修改的地方"""
 
-        merge_result = await self.parallel_engine._run_cli(
+        merge_result = await self.parallel_engine.run_single(
             "claude", merge_prompt, str(self.project_dir)
         )
 
@@ -457,7 +457,7 @@ Codex 的审查：
 
         # 生成 commit message
         prompt = self.git.generate_commit_prompt(diff)
-        result = await self.parallel_engine._run_cli(
+        result = await self.parallel_engine.run_single(
             "claude", prompt, str(self.project_dir)
         )
 

@@ -56,30 +56,41 @@ class ParallelEngine:
                 else:
                     cmd = ["codex", "-q", prompt]
 
-                result = subprocess.run(
-                    cmd,
+                # 使用 asyncio.create_subprocess_exec 替代 subprocess.run
+                # 避免阻塞事件循环
+                process = await asyncio.create_subprocess_exec(
+                    *cmd,
                     cwd=cwd,
-                    capture_output=True,
-                    text=True,
-                    timeout=self.config.timeout,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
                 )
+
+                try:
+                    stdout, stderr = await asyncio.wait_for(
+                        process.communicate(),
+                        timeout=self.config.timeout,
+                    )
+                except asyncio.TimeoutError:
+                    process.kill()
+                    await process.wait()
+                    raise
 
                 duration = time.time() - start_time
 
-                if result.returncode == 0:
+                if process.returncode == 0:
                     return CLIResult(
                         tool=tool,
                         success=True,
-                        output=result.stdout,
+                        output=stdout.decode("utf-8", errors="replace"),
                         duration=duration,
                         retries=attempt,
                     )
                 else:
-                    last_error = result.stderr
+                    last_error = stderr.decode("utf-8", errors="replace")
                     if attempt < self.config.max_retries - 1:
                         await asyncio.sleep(2 ** attempt)  # 指数退避
 
-            except subprocess.TimeoutExpired:
+            except asyncio.TimeoutError:
                 last_error = f"Timeout after {self.config.timeout}s"
                 if attempt < self.config.max_retries - 1:
                     await asyncio.sleep(2 ** attempt)
@@ -113,6 +124,15 @@ class ParallelEngine:
             return result.output
         else:
             raise RuntimeError(f"{tool} error: {result.error}")
+
+    async def run_single(
+        self,
+        tool: str,
+        prompt: str,
+        cwd: str = ".",
+    ) -> CLIResult:
+        """执行单个工具并返回完整结果"""
+        return await self._run_cli(tool, prompt, cwd)
 
     async def run_parallel(
         self,

@@ -8,6 +8,7 @@ import asyncio
 import json
 import logging
 import uuid
+from collections import deque
 from datetime import datetime
 from typing import Any
 
@@ -74,8 +75,7 @@ class DuetServer:
         self.host = host
         self.port = port
         self.clients: dict[str, ServerConnection] = {}  # agent_id -> websocket
-        self.pending_requests: dict[str, asyncio.Future] = {}  # request_id -> future
-        self.message_history: list[Message] = []
+        self.message_history: deque[Message] = deque(maxlen=10000)  # 限制最大长度
 
     async def handler(self, websocket: ServerConnection):
         """处理 WebSocket 连接"""

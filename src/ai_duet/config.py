@@ -90,7 +90,16 @@ class AppConfig:
 
         # 执行配置
         config.execution.parallel = os.getenv("COLLAB_PARALLEL", "true").lower() == "true"
-        config.execution.timeout = int(os.getenv("COLLAB_TIMEOUT", str(config.execution.timeout)))
+
+        # 安全地解析整数环境变量
+        def _env_int(key: str, default: int) -> int:
+            try:
+                return int(os.getenv(key, str(default)))
+            except ValueError:
+                return default
+
+        config.execution.timeout = _env_int("COLLAB_TIMEOUT", config.execution.timeout)
+        config.execution.max_retries = _env_int("COLLAB_MAX_RETRIES", config.execution.max_retries)
         config.execution.interactive = os.getenv("COLLAB_INTERACTIVE", "false").lower() == "true"
 
         # Git 配置

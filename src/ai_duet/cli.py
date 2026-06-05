@@ -321,13 +321,20 @@ def _show_result(session, mode):
 def _check_tool(name, cmd):
     """检查工具状态"""
     import subprocess
+    import shutil
+
+    # 先检查命令是否存在
+    if not shutil.which(cmd):
+        console.print(f"[red]✗[/red] {name}: 未安装")
+        return
+
     try:
+        # 使用列表形式，避免 shell=True 的安全风险
         r = subprocess.run(
-            f"{cmd} --version",
+            [cmd, "--version"],
             capture_output=True,
             text=True,
             timeout=10,
-            shell=True,
         )
         if r.returncode == 0:
             version = r.stdout.strip().split('\n')[0]
