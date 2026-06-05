@@ -485,14 +485,13 @@ Codex 的审查：
 - category: security/performance/readability/logic/style/architecture
 - confidence: 0.0-1.0"""
         else:
-            return f"""Review the following code:
+            # Codex 从文件系统读取代码，不需要在提示中包含代码内容
+            return f"""Review the code in the current project directory.
+
 Target: {target}
-Project directory: {self.project_dir}
+Working directory: {self.project_dir}
 
-Code:
-{code}
-
-Provide structured review feedback as JSON with:
+Please review the target file(s) and provide structured feedback as JSON with:
 - severity: CRITICAL/HIGH/MEDIUM/LOW
 - file_path: file path
 - line_start, line_end: line numbers
