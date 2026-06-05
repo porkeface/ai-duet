@@ -29,20 +29,14 @@ npm install -g @openai/codex
 
 ## 🚀 使用
 
-### 方式 1：实时协作模式（推荐）
+### 方式 1：终端 UI 实时协作（推荐）
 
 ```bash
-# 1. 启动 WebSocket 服务器
-duet daemon
+# 启动终端 UI
+duet tui
 
-# 2. 在另一个终端，向 Claude 发送问题
-duet ask claude "如何优化这个函数？"
-
-# 3. 向 Codex 发送审查请求
-duet review codex src/main.py
-
-# 4. 查看服务器状态
-duet status
+# 在 UI 中输入问题，Claude 和 Codex 会同时回答
+# 支持多窗口显示，实时查看两个 AI 的回答
 ```
 
 ### 方式 2：本地模式
@@ -61,16 +55,29 @@ duet p "实现用户认证"
 duet c
 ```
 
+### 方式 3：WebSocket 服务器模式
+
+```bash
+# 1. 启动 WebSocket 服务器
+duet daemon
+
+# 2. 在另一个终端，向 Claude 发送问题
+duet ask claude "如何优化这个函数？"
+
+# 3. 向 Codex 发送审查请求
+duet review codex src/main.py
+
+# 4. 查看服务器状态
+duet status
+```
+
 ## 📋 命令说明
 
-### 实时协作命令
+### 终端 UI 命令
 
 | 命令 | 说明 | 示例 |
 |------|------|------|
-| `daemon` | 启动 WebSocket 服务器 | `duet daemon` |
-| `ask` | 向 Agent 发送问题 | `duet ask claude "问题"` |
-| `review` | 请求 Agent 审查代码 | `duet review codex src/main.py` |
-| `status` | 查看服务器状态 | `duet status` |
+| `tui` | 启动终端 UI 实时协作 | `duet tui` |
 
 ### 本地模式命令
 
@@ -83,24 +90,34 @@ duet c
 | `s` | 查看工具状态 | `duet s` |
 | `h` | 查看历史 | `duet h` |
 
+### WebSocket 服务器命令
+
+| 命令 | 说明 | 示例 |
+|------|------|------|
+| `daemon` | 启动 WebSocket 服务器 | `duet daemon` |
+| `ask` | 向 Agent 发送问题 | `duet ask claude "问题"` |
+| `review` | 请求 Agent 审查代码 | `duet review codex src/main.py` |
+| `status` | 查看服务器状态 | `duet status` |
+
 ## 🎯 工作流程
 
-### 实时协作流程
+### 终端 UI 实时协作流程（推荐）
 
 ```
-1. 启动服务器
-   duet daemon
+1. 启动终端 UI
+   duet tui
 
-2. 在 Claude Code 中写代码
-   claude -p "实现用户登录功能"
+2. 在 UI 中输入问题
+   → Claude 和 Codex 同时回答
+   → 多窗口显示，实时查看
 
-3. 写完后，请求 Codex 审查
-   duet ask codex "审查刚才的代码"
+3. 查看两个 AI 的回答
+   → 比较不同的解决方案
+   → 选择最佳方案
 
-4. Codex 返回审查结果
-   Claude 看到结果，继续修改
-
-5. 重复直到满意
+4. 继续对话
+   → 深入讨论
+   → 迭代优化
 ```
 
 ### 本地模式流程
@@ -156,6 +173,7 @@ ai-duet/
 ├── src/ai_duet/
 │   ├── cli.py               # CLI 命令
 │   ├── cli_engine.py        # 执行引擎
+│   ├── tui.py               # 终端 UI（Textual）
 │   ├── server.py            # WebSocket 服务器
 │   ├── protocol.py          # 消息协议
 │   ├── config.py            # 配置管理

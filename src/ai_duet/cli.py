@@ -21,6 +21,7 @@ from .persistence import SessionStorage
 from .git_integration import GitIntegration
 from .formatter import OutputFormatter
 from .server import DuetServer, DuetClient, Message
+from .tui import run_tui
 
 console = Console()
 fmt = OutputFormatter()
@@ -260,6 +261,20 @@ def h():
     for s in sessions:
         table.add_row(s["id"], s["mode"], s["status"], s["started_at"])
     console.print(table)
+
+
+@cli.command()
+def tui():
+    """启动终端 UI 实时协作"""
+    fmt.print_info("启动 AI Duet TUI...")
+    fmt.print_info("按 Ctrl+C 或输入 'quit' 退出")
+    try:
+        run_tui()
+    except KeyboardInterrupt:
+        fmt.print_info("已退出")
+    except Exception as e:
+        fmt.print_error(f"TUI 错误: {e}")
+        sys.exit(1)
 
 
 def _show_result(session, mode):

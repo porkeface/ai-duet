@@ -101,6 +101,19 @@ class ParallelEngine:
             retries=self.config.max_retries,
         )
 
+    async def run_tool(
+        self,
+        tool: str,
+        prompt: str,
+        cwd: str = ".",
+    ) -> str:
+        """执行单个工具并返回输出"""
+        result = await self._run_cli(tool, prompt, cwd)
+        if result.success:
+            return result.output
+        else:
+            raise RuntimeError(f"{tool} error: {result.error}")
+
     async def run_parallel(
         self,
         claude_prompt: str,

@@ -29,6 +29,7 @@ dependencies = [
     "pydantic>=2.0",
     "python-dotenv>=1.2.2",
     "websockets>=16.0",
+    "textual>=8.2.7",
 ]
 
 [project.urls]
