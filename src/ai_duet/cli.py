@@ -134,15 +134,25 @@ def _check_tool(name, cmd):
     """检查工具状态"""
     import subprocess
     try:
-        r = subprocess.run([cmd, "--version"], capture_output=True, text=True, timeout=5)
+        # Windows 上需要 shell=True 才能找到 npm 全局安装的命令
+        r = subprocess.run(
+            f"{cmd} --version",
+            capture_output=True,
+            text=True,
+            timeout=10,
+            shell=True,
+        )
         if r.returncode == 0:
-            console.print(f"[green]✓[/green] {name}: {r.stdout.strip()}")
+            version = r.stdout.strip().split('\n')[0]  # 只取第一行
+            console.print(f"[green]✓[/green] {name}: {version}")
         else:
             console.print(f"[red]✗[/red] {name}: 错误")
     except FileNotFoundError:
         console.print(f"[red]✗[/red] {name}: 未安装")
-    except Exception:
+    except subprocess.TimeoutExpired:
         console.print(f"[yellow]?[/yellow] {name}: 超时")
+    except Exception as e:
+        console.print(f"[red]✗[/red] {name}: {e}")
 
 
 def main():
