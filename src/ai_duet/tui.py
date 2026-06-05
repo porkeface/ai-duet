@@ -109,7 +109,7 @@ class DuetApp(App):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.config = get_config()
-        self.engine = ParallelEngine(self.config)
+        self.engine = ParallelEngine(self.config.execution)
         self.claude_output = ""
         self.codex_output = ""
 
