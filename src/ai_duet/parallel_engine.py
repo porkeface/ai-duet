@@ -95,29 +95,42 @@ class ParallelEngine:
         """解析 Codex 的 JSONL 输出"""
         lines = raw_output.strip().split("\n")
         messages = []
+        errors = []
         for line in lines:
             line = line.strip()
             if not line:
                 continue
             try:
                 data = json.loads(line)
+                event_type = data.get("type", "")
+
                 # 提取消息内容
-                if data.get("type") == "message":
+                if event_type == "item.completed":
+                    item = data.get("item", {})
+                    item_type = item.get("type", "")
+                    if item_type == "agent_message":
+                        text = item.get("text", "")
+                        if text:
+                            messages.append(text)
+                elif event_type == "message":
                     content = data.get("content", "")
                     if content:
                         messages.append(content)
-                elif data.get("type") == "response":
-                    # 有些版本用 response 类型
+                elif event_type == "response":
                     text = data.get("text", "") or data.get("content", "")
                     if text:
                         messages.append(text)
-                elif data.get("type") == "error":
+                elif event_type == "error":
                     error_msg = data.get("message", "Unknown error")
-                    messages.append(f"[Error: {error_msg}]")
+                    errors.append(error_msg)
             except json.JSONDecodeError:
                 # 非 JSON 行直接作为输出
                 if line and not line.startswith("{"):
                     messages.append(line)
+
+        # 如果有错误，附加到输出中
+        if errors:
+            messages.append(f"[Errors: {'; '.join(errors)}]")
 
         result = "\n".join(messages).strip()
         return result if result else raw_output
