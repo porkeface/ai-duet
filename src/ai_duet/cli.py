@@ -20,8 +20,12 @@ from .config import AppConfig, get_config, CONFIG_FILE
 from .persistence import SessionStorage
 from .git_integration import GitIntegration
 from .formatter import OutputFormatter
-from .server import DuetServer, DuetClient, Message
 from .tui import run_tui
+
+# 延迟导入 server 模块（只在需要时导入，避免依赖 websockets）
+def _get_server():
+    from .server import DuetServer, DuetClient, Message
+    return DuetServer, DuetClient, Message
 
 console = Console()
 fmt = OutputFormatter()
@@ -45,6 +49,7 @@ def daemon(port):
     import logging
     logging.basicConfig(level=logging.INFO)
 
+    DuetServer, _, _ = _get_server()
     server = DuetServer(port=port)
     fmt.print_success(f"启动服务器 ws://localhost:{port}")
     fmt.print_info("按 Ctrl+C 停止")
@@ -66,6 +71,7 @@ def ask(agent, question, timeout):
     QUESTION: 问题内容
     """
     async def _ask():
+        _, DuetClient, _ = _get_server()
         client = DuetClient("user")
         try:
             await client.connect()
@@ -101,6 +107,7 @@ def review(agent, file_path):
     FILE_PATH: 文件路径
     """
     async def _review():
+        _, DuetClient, _ = _get_server()
         client = DuetClient("user")
         try:
             await client.connect()
@@ -140,6 +147,7 @@ def review(agent, file_path):
 def status():
     """查看服务器状态"""
     async def _status():
+        _, DuetClient, _ = _get_server()
         client = DuetClient("status-check")
         try:
             await client.connect()
