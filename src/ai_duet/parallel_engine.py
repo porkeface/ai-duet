@@ -5,9 +5,12 @@
 """
 
 import asyncio
+import os
+import shutil
 import subprocess
 import time
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Callable, Coroutine
 
 from .config import ExecutionConfig
@@ -38,6 +41,33 @@ class ParallelEngine:
     def __init__(self, config: ExecutionConfig | None = None):
         self.config = config or ExecutionConfig()
 
+    def _get_tool_path(self, tool: str) -> str:
+        """获取工具的完整路径"""
+        # 先在 PATH 中查找
+        tool_path = shutil.which(tool)
+        if tool_path:
+            return tool_path
+
+        # 如果在 PATH 中找不到，尝试在 npm 全局目录中查找
+        npm_global_dirs = [
+            Path.home() / ".npm-global" / "bin",
+            Path.home() / "AppData" / "Roaming" / "npm",
+            Path("D:/Soft/Nodejs/node_global"),  # 常见的 npm 全局目录
+        ]
+
+        for npm_dir in npm_global_dirs:
+            if npm_dir.exists():
+                tool_path = npm_dir / tool
+                if tool_path.exists():
+                    return str(tool_path)
+                # Windows 上也检查 .cmd 文件
+                tool_path_cmd = npm_dir / f"{tool}.cmd"
+                if tool_path_cmd.exists():
+                    return str(tool_path_cmd)
+
+        # 如果都找不到，返回原始命令名
+        return tool
+
     async def _run_cli(
         self,
         tool: str,
@@ -50,11 +80,14 @@ class ParallelEngine:
 
         for attempt in range(self.config.max_retries):
             try:
+                # 获取工具的完整路径
+                tool_path = self._get_tool_path(tool)
+
                 # 使用列表形式，安全且跨平台
                 if tool == "claude":
-                    cmd = ["claude", "-p", prompt, "--output-format", "json"]
+                    cmd = [tool_path, "-p", prompt, "--output-format", "json"]
                 else:
-                    cmd = ["codex", "-q", prompt]
+                    cmd = [tool_path, "-q", prompt]
 
                 # 使用 asyncio.create_subprocess_exec 替代 subprocess.run
                 # 避免阻塞事件循环
