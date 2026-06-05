@@ -1,24 +1,23 @@
 # AI Duet
 
-Claude + Codex 双 AI 协作工具
+Claude + Codex 实时协作工具
 
-让 Claude Code 和 Codex 在任何项目中互相协作，提高代码质量。
+让 Claude Code 和 Codex 能够实时交流、互相审查、协作编写代码。
 
 ## ✨ 功能
 
-- 🔍 **代码审计** - 两个 AI 互相审查代码
-- 💬 **技术讨论** - 多轮对话，达成共识
+- 🔍 **实时审查** - Claude 和 Codex 互相审查代码
+- 💬 **实时交流** - 通过 WebSocket 实时通信
 - 👥 **协作编码** - 智能分工，各自编写
-- ⚡ **并行执行** - 性能提升 2x
 - 🔧 **Git 集成** - 自动生成 commit message
 - 💾 **会话持久化** - 结果可复用
 
 ## 📦 安装
 
 ```bash
-git clone https://github.com/yourusername/ai-duet.git
+git clone https://github.com/porkeface/ai-duet.git
 cd ai-duet
-pip install -e .
+uv pip install -e .
 ```
 
 ### 前置要求
@@ -30,73 +29,100 @@ npm install -g @openai/codex
 
 ## 🚀 使用
 
-### 命令速查
+### 方式 1：实时协作模式（推荐）
 
 ```bash
-duet r [目标]     # 审计代码
-duet r -g         # 审计 git diff
-duet d "话题"     # 技术讨论
-duet p "任务"     # 协作编码
-duet c            # 生成 commit message
-duet s            # 查看状态
-duet h            # 查看历史
+# 1. 启动 WebSocket 服务器
+duet daemon
+
+# 2. 在另一个终端，向 Claude 发送问题
+duet ask claude "如何优化这个函数？"
+
+# 3. 向 Codex 发送审查请求
+duet review codex src/main.py
+
+# 4. 查看服务器状态
+duet status
 ```
 
-### 示例
+### 方式 2：本地模式
 
 ```bash
-# 审计当前目录
-duet r .
-
-# 审计特定文件
+# 审计代码
 duet r src/main.py
 
-# 审计 git staged changes
-duet r -g
-
-# 讨论架构选择
+# 技术讨论
 duet d "微服务还是单体？"
 
-# 协作编写功能
+# 协作编码
 duet p "实现用户认证"
 
-# 自动生成 commit message
+# 生成 commit message
 duet c
-
-# 查看状态
-duet s
-
-# 查看历史
-duet h
 ```
 
 ## 📋 命令说明
 
-| 命令 | 说明 | 参数 |
+### 实时协作命令
+
+| 命令 | 说明 | 示例 |
 |------|------|------|
-| `r` | 审计代码 | `[目标]` 文件/目录，默认当前目录 |
-| `d` | 技术讨论 | `"话题"` 必填 |
-| `p` | 协作编码 | `"任务"` 必填 |
-| `c` | 生成 commit | 无参数 |
-| `s` | 查看状态 | 无参数 |
-| `h` | 查看历史 | 无参数 |
+| `daemon` | 启动 WebSocket 服务器 | `duet daemon` |
+| `ask` | 向 Agent 发送问题 | `duet ask claude "问题"` |
+| `review` | 请求 Agent 审查代码 | `duet review codex src/main.py` |
+| `status` | 查看服务器状态 | `duet status` |
+
+### 本地模式命令
+
+| 命令 | 说明 | 示例 |
+|------|------|------|
+| `r` | 审计代码 | `duet r src/main.py` |
+| `d` | 技术讨论 | `duet d "话题"` |
+| `p` | 协作编码 | `duet p "任务"` |
+| `c` | 生成 commit | `duet c` |
+| `s` | 查看工具状态 | `duet s` |
+| `h` | 查看历史 | `duet h` |
+
+## 🎯 工作流程
+
+### 实时协作流程
+
+```
+1. 启动服务器
+   duet daemon
+
+2. 在 Claude Code 中写代码
+   claude -p "实现用户登录功能"
+
+3. 写完后，请求 Codex 审查
+   duet ask codex "审查刚才的代码"
+
+4. Codex 返回审查结果
+   Claude 看到结果，继续修改
+
+5. 重复直到满意
+```
+
+### 本地模式流程
+
+```
+1. duet d "讨论方案"     # 技术讨论
+2. duet p "实现功能"     # 协作编码
+3. duet r src/xxx.py     # 代码审查
+4. duet c                # 生成 commit
+5. git push              # 提交代码
+```
 
 ## ⚙️ 配置
 
 ### 环境变量
 
 ```bash
-# 并行执行
-export DUET_PARALLEL=true
+# 服务器端口
+export DUET_PORT=8765
 
 # 超时时间
-export DUET_TIMEOUT=120
-
-# 保存结果
-export DUET_SAVE=true
-
-# 输出目录
-export DUET_OUTPUT_DIR=./output
+export DUET_TIMEOUT=60
 ```
 
 ### 配置文件
@@ -105,44 +131,12 @@ export DUET_OUTPUT_DIR=./output
 
 ```json
 {
-  "output": {
-    "format": "rich",
-    "save_results": true
+  "server": {
+    "host": "localhost",
+    "port": 8765
   },
-  "execution": {
-    "parallel": true,
-    "timeout": 120
-  },
-  "git": {
-    "commit_style": "conventional"
-  }
+  "timeout": 60
 }
-```
-
-## 🎯 工作流程
-
-### 审计模式
-
-```
-Claude 审查 ──┐
-              ├→ 比较 → 最终建议
-Codex 审查 ──┘
-```
-
-### 讨论模式
-
-```
-Claude 观点 ──┐
-              ├→ 多轮讨论 → 总结
-Codex 观点 ──┘
-```
-
-### 协作模式
-
-```
-分工方案 → Claude 编写 ──┐
-                         ├→ 审查 → 合并
-           Codex 编写 ──┘
 ```
 
 ## 🧪 开发
@@ -162,6 +156,7 @@ ai-duet/
 ├── src/ai_duet/
 │   ├── cli.py               # CLI 命令
 │   ├── cli_engine.py        # 执行引擎
+│   ├── server.py            # WebSocket 服务器
 │   ├── protocol.py          # 消息协议
 │   ├── config.py            # 配置管理
 │   ├── parallel_engine.py   # 并行执行

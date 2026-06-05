@@ -1,10 +1,10 @@
 """
-AI Duet: Claude + Codex AI Collaboration Tool
+AI Duet: Claude + Codex Real-time Collaboration Tool
 
-让 Claude Code 和 Codex 在任何项目中互相协作，提高代码质量。
+让 Claude Code 和 Codex 能够实时交流、互相审查、协作编写代码。
 """
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 __author__ = "AI Duet Contributors"
 
 from .protocol import (

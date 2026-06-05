@@ -45,16 +45,16 @@ class ParallelEngine:
         cwd: str = ".",
     ) -> CLIResult:
         """执行单个 CLI 命令"""
-        import shlex
         start_time = time.time()
         last_error = ""
 
         for attempt in range(self.config.max_retries):
             try:
+                # 使用列表形式，安全且跨平台
                 if tool == "claude":
-                    cmd = f'claude -p "{prompt}" --output-format json'
+                    cmd = ["claude", "-p", prompt, "--output-format", "json"]
                 else:
-                    cmd = f'codex -q "{prompt}"'
+                    cmd = ["codex", "-q", prompt]
 
                 result = subprocess.run(
                     cmd,
@@ -62,7 +62,6 @@ class ParallelEngine:
                     capture_output=True,
                     text=True,
                     timeout=self.config.timeout,
-                    shell=True,  # Windows 需要 shell=True
                 )
 
                 duration = time.time() - start_time

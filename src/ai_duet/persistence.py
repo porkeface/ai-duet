@@ -189,7 +189,7 @@ class ResultExporter:
         filename = f"{session.id}_{session.mode.value}.html"
         path = self.output_dir / filename
 
-        html = f"""<!DOCTYPE html>
+        html_content = f"""<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
@@ -227,19 +227,19 @@ class ResultExporter:
             else:
                 content = f"<p>{html.escape(str(msg.content))}</p>"
 
-            html += f"""
+            html_content += f"""
     <div class="message {msg.sender}">
         <div class="meta">{msg.sender} - {msg.timestamp.isoformat()}</div>
         {content}
     </div>
 """
 
-        html += """
+        html_content += """
 </body>
 </html>
 """
 
         with open(path, "w", encoding="utf-8") as f:
-            f.write(html)
+            f.write(html_content)
 
         return path

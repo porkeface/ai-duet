@@ -4,8 +4,8 @@ build-backend = "hatchling.build"
 
 [project]
 name = "ai-duet"
-version = "0.1.0"
-description = "Claude + Codex AI Collaboration Tool"
+version = "0.2.0"
+description = "Claude + Codex Real-time Collaboration Tool"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.10"
@@ -28,12 +28,13 @@ dependencies = [
     "rich>=13.0",
     "pydantic>=2.0",
     "python-dotenv>=1.2.2",
+    "websockets>=16.0",
 ]
 
 [project.urls]
-Homepage = "https://github.com/ai-duet/ai-duet"
-Repository = "https://github.com/ai-duet/ai-duet"
-Issues = "https://github.com/ai-duet/ai-duet/issues"
+Homepage = "https://github.com/porkeface/ai-duet"
+Repository = "https://github.com/porkeface/ai-duet"
+Issues = "https://github.com/porkeface/ai-duet/issues"
 
 [project.scripts]
 duet = "ai_duet.cli:main"
