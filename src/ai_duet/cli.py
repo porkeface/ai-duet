@@ -318,20 +318,47 @@ def _show_result(session, mode):
             ))
 
 
+def _get_tool_path(cmd):
+    """获取工具的完整路径"""
+    import shutil
+    from pathlib import Path
+
+    # 先在 PATH 中查找
+    tool_path = shutil.which(cmd)
+    if tool_path:
+        return tool_path
+
+    # 如果在 PATH 中找不到，尝试在 npm 全局目录中查找
+    npm_global_dirs = [
+        Path.home() / ".npm-global" / "bin",
+        Path.home() / "AppData" / "Roaming" / "npm",
+        Path("D:/Soft/Nodejs/node_global"),  # 常见的 npm 全局目录
+    ]
+
+    for npm_dir in npm_global_dirs:
+        if npm_dir.exists():
+            tool_path = npm_dir / cmd
+            if tool_path.exists():
+                return str(tool_path)
+            # Windows 上也检查 .cmd 文件
+            tool_path_cmd = npm_dir / f"{cmd}.cmd"
+            if tool_path_cmd.exists():
+                return str(tool_path_cmd)
+
+    # 如果都找不到，返回原始命令名
+    return cmd
+
 def _check_tool(name, cmd):
     """检查工具状态"""
     import subprocess
-    import shutil
 
-    # 先检查命令是否存在
-    if not shutil.which(cmd):
-        console.print(f"[red]✗[/red] {name}: 未安装")
-        return
+    # 获取工具的完整路径
+    tool_path = _get_tool_path(cmd)
 
     try:
         # 使用列表形式，避免 shell=True 的安全风险
         r = subprocess.run(
-            [cmd, "--version"],
+            [tool_path, "--version"],
             capture_output=True,
             text=True,
             timeout=10,
