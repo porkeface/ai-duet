@@ -176,15 +176,15 @@ class DuetApp(App):
         claude_panel.update_content("[yellow]正在思考...[/yellow]", "working")
         codex_panel.update_content("[yellow]正在思考...[/yellow]", "working")
 
-        try:
-            # Run in parallel
-            claude_task = asyncio.create_task(
-                self.engine.run_tool("claude", query)
-            )
-            codex_task = asyncio.create_task(
-                self.engine.run_tool("codex", query)
-            )
+        # Run in parallel
+        claude_task = asyncio.create_task(
+            self.engine.run_tool("claude", query)
+        )
+        codex_task = asyncio.create_task(
+            self.engine.run_tool("codex", query)
+        )
 
+        try:
             # Wait for Claude
             try:
                 claude_result = await asyncio.wait_for(claude_task, timeout=120)
@@ -218,6 +218,9 @@ class DuetApp(App):
 
         except Exception as e:
             chat_log.add_message("System", f"错误: {e}", "red")
+            # 取消未完成的任务
+            claude_task.cancel()
+            codex_task.cancel()
 
     def action_clear(self) -> None:
         """Clear the chat log."""
