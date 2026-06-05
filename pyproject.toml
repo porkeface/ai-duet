@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "ai-duet"
-version = "0.3.2"
+version = "0.3.3"
 description = "Claude + Codex Real-time Collaboration Tool"
 readme = "README.md"
 license = "MIT"
